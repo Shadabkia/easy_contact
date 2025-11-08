@@ -30,6 +30,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
+import ir.co.contact.presentation.contact_list.ContactScreenWithPermission
 import ir.co.contact.presentation.main.navigation.NavigationRoutes
 import ir.co.contact.presentation.theme.ContactTheme
 
@@ -69,7 +70,7 @@ class MainActivity : ComponentActivity() {
                             startDestination = NavigationRoutes.ContactListScreen
                         ) {
                             composable<NavigationRoutes.ContactListScreen> {
-                                GeneralScreen(modifier = paddingModifier, text = "Contact list")
+                                ContactScreenWithPermission()
                             }
                             composable<NavigationRoutes.ContactCardScreen>(
                                 exitTransition = {

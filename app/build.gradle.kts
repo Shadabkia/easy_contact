@@ -158,6 +158,8 @@ dependencies {
     // Timber
     implementation(libs.timber)
 
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+
     // Paging3
 //    implementation(libs.androidx.paging.runtime.ktx)
 //    implementation(libs.androidx.paging.compose)
