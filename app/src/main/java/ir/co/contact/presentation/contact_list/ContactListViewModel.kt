@@ -12,9 +12,13 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import ir.co.contact.domain.model.Contact
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-// 3. ViewModel
 class ContactListViewModel(application: Application) : AndroidViewModel(application) {
     private val _contacts = mutableStateOf<List<Contact>>(emptyList())
     val contacts: State<List<Contact>> = _contacts
@@ -25,6 +29,10 @@ class ContactListViewModel(application: Application) : AndroidViewModel(applicat
     // Add loading state
     private val _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
+
+    // StateFlow for reactive updates
+    private val _contactsFlow = MutableStateFlow<List<Contact>>(emptyList())
+    val contactsFlow: StateFlow<List<Contact>> = _contactsFlow.asStateFlow()
 
     fun checkPermission(context: Context) {
         _hasPermission.value = ContextCompat.checkSelfPermission(
@@ -38,8 +46,15 @@ class ContactListViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             _isLoading.value = true  // Show loading
             try {
-                val contactList = fetchContactsFromPhone(context.contentResolver)
+                // Use Dispatchers.IO for database operations to prevent ANR
+                val contactList = withContext(Dispatchers.IO) {
+                    fetchContactsFromPhone(context.contentResolver)
+                }
                 _contacts.value = contactList
+                _contactsFlow.value = contactList
+            } catch (e: Exception) {
+                // Handle any errors during contact loading
+                e.printStackTrace()
             } finally {
                 _isLoading.value = false  // Hide loading
             }

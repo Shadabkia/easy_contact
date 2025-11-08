@@ -7,28 +7,33 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
 
 private val LightColorScheme = lightColorScheme(
     primary = Primary,
     onPrimary = OnPrimary,
     secondary = Secondary,
+    tertiary = Tertiary,
     background = AppBackground,
     surface = CardBackground,
     onSurface = TextPrimary,
+    onSurfaceVariant = TextSecondary,
     error = ErrorRed,
     onBackground = TextPrimary
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Primary,
-    onPrimary = OnPrimary,
-    secondary = Secondary,
-    background = DeepNavy1,
-    surface = DeepNavy2,
-    onSurface = OnPrimary,
+    primary = DeepNavy1,
+    onPrimary = TextDark,
+    secondary = DeepNavy2,
+    tertiary = Tertiary,
+    background = Color(0xFF1A1C1E),
+    surface = Color(0xFF2B2D30),
+    onSurface = TextDark,
+    onSurfaceVariant = Color(0xFFB3B3B3),
     error = ErrorRed,
-    onBackground = OnPrimary
+    onBackground = TextDark
 )
 
 @Composable
@@ -36,7 +41,7 @@ fun ContactTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colors =  LightColorScheme
+    val colors = if (darkTheme) DarkColorScheme else LightColorScheme
 
     MaterialTheme(
         colorScheme = colors,

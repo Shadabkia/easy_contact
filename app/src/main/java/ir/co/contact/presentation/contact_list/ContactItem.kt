@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -31,6 +32,10 @@ fun ContactItem(
     contact: Contact,
     modifier: Modifier = Modifier
 ) {
+    val textPrimaryColor = MaterialTheme.colorScheme.onSurface
+    val textSecondaryColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val favoriteStarColor = MaterialTheme.colorScheme.tertiary
+    
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -47,7 +52,7 @@ fun ContactItem(
         ) {
             Text(
                 text = getInitials(contact.name),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -63,14 +68,14 @@ fun ContactItem(
                     text = contact.name,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.Black
+                    color = textPrimaryColor
                 )
                 if (contact.isFavorite) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = "Favorite",
-                        tint = Color(0xFFFFC107),
+                        tint = favoriteStarColor,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -81,7 +86,7 @@ fun ContactItem(
             Text(
                 text = contact.phoneNumber,
                 fontSize = 14.sp,
-                color = Color.Gray
+                color = textSecondaryColor
             )
         }
     }
