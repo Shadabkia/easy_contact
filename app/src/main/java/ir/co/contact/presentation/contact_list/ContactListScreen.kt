@@ -184,6 +184,7 @@ fun ContactPermissionDialog(
 @Composable
 fun ContactListScreen(
     contacts: List<Contact>,
+    onContactClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val backgroundColor = MaterialTheme.colorScheme.primary
@@ -238,7 +239,10 @@ fun ContactListScreen(
                     items = contacts,
                     key = { it.id }
                 ) { contact ->
-                    ContactItem(contact = contact)
+                    ContactItem(
+                        contact = contact,
+                        onClick = { onContactClick(contact.id) }
+                    )
                 }
             }
         }
@@ -248,6 +252,7 @@ fun ContactListScreen(
 // Permission wrapper
 @Composable
 fun ContactScreenWithPermission(
+    onContactClick: (String) -> Unit,
     viewModel: ContactListViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -322,7 +327,10 @@ fun ContactScreenWithPermission(
                 ScreenLoading(Modifier)
             }
             hasPermission -> {
-                ContactListScreen(contacts = contacts)
+                ContactListScreen(
+                    contacts = contacts,
+                    onContactClick = onContactClick
+                )
             }
             else -> {
                 // Show an empty state while permission dialog is shown
@@ -402,5 +410,8 @@ fun ContactListScreenPreview() {
         Contact("8", "Hr kia", "+98 930 262 7437")
     )
 
-    ContactListScreen(contacts = mockContacts)
+    ContactListScreen(
+        contacts = mockContacts,
+        onContactClick = {}
+    )
 }

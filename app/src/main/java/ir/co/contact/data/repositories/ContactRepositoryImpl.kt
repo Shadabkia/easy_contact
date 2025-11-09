@@ -69,29 +69,28 @@ class ContactRepositoryImpl @Inject constructor(
                 val name = cursor.getString(nameColumn) ?: continue
                 val isStarred = cursor.getInt(starredColumn) > 0
 
-                // Get phone number
-                contentResolver.query(
-                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                    arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
-                    "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-                    arrayOf(id),
-                    null
-                )?.use { phoneCursor ->
-                    if (phoneCursor.moveToFirst()) {
-                        val phoneIndex = phoneCursor.getColumnIndex(
-                            ContactsContract.CommonDataKinds.Phone.NUMBER
-                        )
-                        val phoneNumber = phoneCursor.getString(phoneIndex) ?: ""
+                // Get all phone numbers
+                val phoneNumbers = fetchPhoneNumbers(contentResolver, id)
+                val primaryPhone = phoneNumbers.firstOrNull()?.number ?: ""
 
-                        contacts.add(
-                            Contact(
-                                id = id,
-                                name = name,
-                                phoneNumber = formatPhoneNumber(phoneNumber),
-                                isFavorite = isStarred
-                            )
+                // Get all emails
+                val emails = fetchEmails(contentResolver, id)
+
+                // Get addresses
+                val addresses = fetchAddresses(contentResolver, id)
+
+                if (phoneNumbers.isNotEmpty()) {
+                    contacts.add(
+                        Contact(
+                            id = id,
+                            name = name,
+                            phoneNumber = formatPhoneNumber(primaryPhone),
+                            isFavorite = isStarred,
+                            phoneNumbers = phoneNumbers,
+                            emails = emails,
+                            addresses = addresses
                         )
-                    }
+                    )
                 }
             }
         }
@@ -99,21 +98,109 @@ class ContactRepositoryImpl @Inject constructor(
         return contacts
     }
 
+    private fun fetchPhoneNumbers(contentResolver: ContentResolver, contactId: String): List<ir.co.contact.domain.model.PhoneNumber> {
+        val phoneNumbers = mutableListOf<ir.co.contact.domain.model.PhoneNumber>()
+
+        contentResolver.query(
+            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+            arrayOf(
+                ContactsContract.CommonDataKinds.Phone.NUMBER,
+                ContactsContract.CommonDataKinds.Phone.TYPE
+            ),
+            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+            arrayOf(contactId),
+            null
+        )?.use { cursor ->
+            val numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+            val typeIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TYPE)
+
+            while (cursor.moveToNext()) {
+                val number = cursor.getString(numberIndex) ?: continue
+                val type = when (cursor.getInt(typeIndex)) {
+                    ContactsContract.CommonDataKinds.Phone.TYPE_HOME -> ir.co.contact.domain.model.PhoneType.HOME
+                    ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE -> ir.co.contact.domain.model.PhoneType.MOBILE
+                    ContactsContract.CommonDataKinds.Phone.TYPE_WORK -> ir.co.contact.domain.model.PhoneType.WORK
+                    else -> ir.co.contact.domain.model.PhoneType.OTHER
+                }
+                phoneNumbers.add(ir.co.contact.domain.model.PhoneNumber(formatPhoneNumber(number), type))
+            }
+        }
+
+        return phoneNumbers
+    }
+
+    private fun fetchEmails(contentResolver: ContentResolver, contactId: String): List<ir.co.contact.domain.model.Email> {
+        val emails = mutableListOf<ir.co.contact.domain.model.Email>()
+
+        contentResolver.query(
+            ContactsContract.CommonDataKinds.Email.CONTENT_URI,
+            arrayOf(
+                ContactsContract.CommonDataKinds.Email.ADDRESS,
+                ContactsContract.CommonDataKinds.Email.TYPE
+            ),
+            "${ContactsContract.CommonDataKinds.Email.CONTACT_ID} = ?",
+            arrayOf(contactId),
+            null
+        )?.use { cursor ->
+            val addressIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Email.ADDRESS)
+            val typeIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Email.TYPE)
+
+            while (cursor.moveToNext()) {
+                val address = cursor.getString(addressIndex) ?: continue
+                val type = when (cursor.getInt(typeIndex)) {
+                    ContactsContract.CommonDataKinds.Email.TYPE_HOME -> ir.co.contact.domain.model.EmailType.PERSONAL
+                    ContactsContract.CommonDataKinds.Email.TYPE_WORK -> ir.co.contact.domain.model.EmailType.WORK
+                    else -> ir.co.contact.domain.model.EmailType.OTHER
+                }
+                emails.add(ir.co.contact.domain.model.Email(address, type))
+            }
+        }
+
+        return emails
+    }
+
+    private fun fetchAddresses(contentResolver: ContentResolver, contactId: String): List<ir.co.contact.domain.model.Address> {
+        val addresses = mutableListOf<ir.co.contact.domain.model.Address>()
+
+        contentResolver.query(
+            ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_URI,
+            arrayOf(
+                ContactsContract.CommonDataKinds.StructuredPostal.FORMATTED_ADDRESS,
+                ContactsContract.CommonDataKinds.StructuredPostal.TYPE
+            ),
+            "${ContactsContract.CommonDataKinds.StructuredPostal.CONTACT_ID} = ?",
+            arrayOf(contactId),
+            null
+        )?.use { cursor ->
+            val addressIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredPostal.FORMATTED_ADDRESS)
+            val typeIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.StructuredPostal.TYPE)
+
+            while (cursor.moveToNext()) {
+                val address = cursor.getString(addressIndex) ?: continue
+                val type = when (cursor.getInt(typeIndex)) {
+                    ContactsContract.CommonDataKinds.StructuredPostal.TYPE_HOME -> ir.co.contact.domain.model.AddressType.HOME
+                    ContactsContract.CommonDataKinds.StructuredPostal.TYPE_WORK -> ir.co.contact.domain.model.AddressType.WORK
+                    else -> ir.co.contact.domain.model.AddressType.OTHER
+                }
+                addresses.add(ir.co.contact.domain.model.Address(address, type))
+            }
+        }
+
+        return addresses
+    }
+
     private fun formatPhoneNumber(phone: String): String {
         val original = phone.trim()
 
-        // Keep international numbers as-is (they start with +)
         if (original.startsWith("+")) {
             return original
         }
 
-        // Format 10-digit numbers: (555) 123-4567
         val digits = original.filter { it.isDigit() }
         if (digits.length == 10) {
             return "(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}"
         }
 
-        // Return original for other formats
         return original
     }
 }

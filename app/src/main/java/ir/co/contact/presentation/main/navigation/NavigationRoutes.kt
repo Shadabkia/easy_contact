@@ -8,5 +8,6 @@ sealed interface NavigationRoutes {
     data object ContactListScreen : NavigationRoutes
 
     @Serializable
-    data object ContactCardScreen : NavigationRoutes
+    data class ContactDetailScreen(val contactId: String) : NavigationRoutes
+
 }

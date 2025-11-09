@@ -29,7 +29,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import dagger.hilt.android.AndroidEntryPoint
+import ir.co.contact.presentation.contact_details.ContactDetailScreen
+import ir.co.contact.presentation.contact_list.ContactListViewModel
 import ir.co.contact.presentation.contact_list.ContactScreenWithPermission
 import ir.co.contact.presentation.main.navigation.NavigationRoutes
 import ir.co.contact.presentation.theme.ContactTheme
@@ -45,7 +48,6 @@ class MainActivity : ComponentActivity() {
             ContactTheme {
                 val snackBarHostState = remember { SnackbarHostState() }
                 val navController = rememberNavController()
-                val mainViewModel = hiltViewModel<MainViewModel>()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
@@ -70,17 +72,27 @@ class MainActivity : ComponentActivity() {
                             startDestination = NavigationRoutes.ContactListScreen
                         ) {
                             composable<NavigationRoutes.ContactListScreen> {
-                                ContactScreenWithPermission()
+                                ContactScreenWithPermission(
+                                    onContactClick = { contactId ->
+                                        navController.navigate(NavigationRoutes.ContactDetailScreen(contactId))
+                                    }
+                                )
                             }
-                            composable<NavigationRoutes.ContactCardScreen>(
-                                exitTransition = {
-                                    slideOutOfContainer(
-                                        AnimatedContentTransitionScope.SlideDirection.Left,
-                                        tween(200)
+                            
+                            composable<NavigationRoutes.ContactDetailScreen> { backStackEntry ->
+                                val route = backStackEntry.toRoute<NavigationRoutes.ContactDetailScreen>()
+                                val viewModel = hiltViewModel<ContactListViewModel>()
+                                val contacts by viewModel.contacts
+                                val contact = contacts.find { it.id == route.contactId }
+                                
+                                contact?.let {
+                                    ContactDetailScreen(
+                                        contact = it,
+                                        onBackClick = { navController.popBackStack() },
+                                        onEditClick = {  },
+                                        onDeleteClick = {  }
                                     )
                                 }
-                            ) {
-                                GeneralScreen(modifier = paddingModifier, text = "Contact Card")
                             }
                         }
                     }
