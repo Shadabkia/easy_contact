@@ -1,6 +1,7 @@
 package ir.co.contact.presentation.contact_list
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,6 +31,7 @@ import ir.co.contact.domain.model.Contact
 @Composable
 fun ContactItem(
     contact: Contact,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val textPrimaryColor = MaterialTheme.colorScheme.onSurface
@@ -39,6 +41,7 @@ fun ContactItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
