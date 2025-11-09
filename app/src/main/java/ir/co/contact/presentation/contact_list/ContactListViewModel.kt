@@ -1,7 +1,6 @@
 package ir.co.contact.presentation.contact_list
 
 import android.Manifest
-import android.app.Application
 import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
@@ -9,17 +8,28 @@ import android.provider.ContactsContract
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import ir.co.contact.data.source.local.database.ContactDao
+import ir.co.contact.data.source.local.database.toDomain
+import ir.co.contact.data.source.local.database.toEntity
 import ir.co.contact.domain.model.Contact
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class ContactListViewModel(application: Application) : AndroidViewModel(application) {
+// 3. ViewModel
+@HiltViewModel
+class ContactListViewModel @Inject constructor(
+    private val contactDao: ContactDao
+) : ViewModel() {
     private val _contacts = mutableStateOf<List<Contact>>(emptyList())
     val contacts: State<List<Contact>> = _contacts
 
@@ -34,30 +44,55 @@ class ContactListViewModel(application: Application) : AndroidViewModel(applicat
     private val _contactsFlow = MutableStateFlow<List<Contact>>(emptyList())
     val contactsFlow: StateFlow<List<Contact>> = _contactsFlow.asStateFlow()
 
+    init {
+        observeLocalContacts()
+    }
+
     fun checkPermission(context: Context) {
         _hasPermission.value = ContextCompat.checkSelfPermission(
             context, Manifest.permission.READ_CONTACTS
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    fun loadContacts(context: Context) {
+    fun loadContacts(context: Context, forceRefresh: Boolean = false) {
         if (!hasPermission.value) return
 
         viewModelScope.launch {
             _isLoading.value = true  // Show loading
             try {
-                // Use Dispatchers.IO for database operations to prevent ANR
-                val contactList = withContext(Dispatchers.IO) {
-                    fetchContactsFromPhone(context.contentResolver)
+                val hasCachedContacts = withContext(Dispatchers.IO) {
+                    contactDao.getContactsCount() > 0
                 }
-                _contacts.value = contactList
-                _contactsFlow.value = contactList
+
+                if (!hasCachedContacts || forceRefresh) {
+                    // Use Dispatchers.IO for database operations to prevent ANR
+                    val contactList = withContext(Dispatchers.IO) {
+                        fetchContactsFromPhone(context.contentResolver)
+                    }
+                    withContext(Dispatchers.IO) {
+                        contactDao.replaceContacts(contactList.map { it.toEntity() })
+                    }
+                }
+                _isLoading.value = false
             } catch (e: Exception) {
                 // Handle any errors during contact loading
                 e.printStackTrace()
-            } finally {
-                _isLoading.value = false  // Hide loading
+                _isLoading.value = false  // Hide loading on error
             }
+        }
+    }
+
+    private fun observeLocalContacts() {
+        viewModelScope.launch {
+            contactDao.getContacts()
+                .map { entities -> entities.map { it.toDomain() } }
+                .collectLatest { contactList ->
+                    _contacts.value = contactList
+                    _contactsFlow.value = contactList
+                    if (_isLoading.value && contactList.isNotEmpty()) {
+                        _isLoading.value = false
+                    }
+                }
         }
     }
 
