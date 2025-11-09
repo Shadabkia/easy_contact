@@ -3,8 +3,6 @@ package ir.co.contact.data.source.local
 import android.content.Context
 import android.database.ContentObserver
 import android.net.Uri
-import android.os.Handler
-import android.os.Looper
 import android.provider.ContactsContract
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -21,7 +19,7 @@ class ContactObserver(private val context: Context) {
      * The flow emits Unit values as a signal that contacts have changed.
      */
     fun observeContactChanges(): Flow<Unit> = callbackFlow {
-        val contentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        val contentObserver = object : ContentObserver(null) {
             override fun onChange(selfChange: Boolean) {
                 super.onChange(selfChange)
                 // Emit signal that contacts have changed
