@@ -11,12 +11,12 @@ Permissions are handled upfront, refresh runs quietly in the background, and the
 - UI reads from Room only: `GetContactsUseCase` exposes a Flow consumed by `ContactListViewModel`, which updates the Compose list whenever the database changes.
 - A `ContactObserver` listens for device contact changes; when triggered, the repository resyncs so Room stays in sync with the phone book without manual refreshes.
 
-## Testing app manually: 
+## Testing app manually:
 open app -> get contacts permission -> wait for sync contact ->
 go to your phone contacts and change, add or remove a contact ->
 back to EasyContact, contacts will sync automatically
 
-### Unit tests
+## Unit tests
 - Run `./gradlew test` to execute JVM unit tests.
 - Place new tests under `app/src/test/java`, e.g. `ir/co/contact/domain/...`.
 - `GetContactByIdUseCaseTest` validates fetching a single contact by id.
