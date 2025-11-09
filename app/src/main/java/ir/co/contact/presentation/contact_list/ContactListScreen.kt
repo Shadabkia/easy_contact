@@ -266,7 +266,7 @@ fun ContactScreenWithPermission(
             viewModel.checkPermission(context)
             if (granted) {
                 showPermissionDialog = false
-                viewModel.loadContacts(context)
+                viewModel.loadContacts()
             } else {
                 permissionDeniedCount++
                 showPermissionDialog = true
@@ -288,7 +288,7 @@ fun ContactScreenWithPermission(
                 Lifecycle.Event.ON_RESUME -> {
                     if (!isFirstResume && hasPermission) {
                         // App resumed - sync contacts in background
-                        viewModel.syncOnAppResume(context)
+                        viewModel.syncOnAppResume()
                     }
                     isFirstResume = false
                 }
@@ -310,7 +310,7 @@ fun ContactScreenWithPermission(
     LaunchedEffect(Unit) {
         viewModel.checkPermission(context)
         if (hasPermission) {
-            viewModel.loadContacts(context)
+            viewModel.loadContacts()
         } else {
             showPermissionDialog = true
         }

@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import ir.co.contact.domain.model.Contact
 import ir.co.contact.domain.usecases.GetContactsUseCase
 import ir.co.contact.domain.usecases.ObserveContactChangesUseCase
@@ -22,8 +23,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+/**
+ * ViewModel for managing contact list state and operations.
+ * Uses Application context to avoid memory leaks.
+ */
 @HiltViewModel
 class ContactListViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val getContactsUseCase: GetContactsUseCase,
     private val syncContactsUseCase: SyncContactsUseCase,
     private val observeContactChangesUseCase: ObserveContactChangesUseCase
@@ -43,7 +49,6 @@ class ContactListViewModel @Inject constructor(
     private val _toastMessage = MutableSharedFlow<String>()
     val toastMessage: SharedFlow<String> = _toastMessage.asSharedFlow()
 
-    private var contextRef: Context? = null
     private var isObservingChanges = false
 
     init {
@@ -63,10 +68,8 @@ class ContactListViewModel @Inject constructor(
      * Initial load: Shows loading and syncs contacts from phone.
      * Always syncs to ensure fresh data on first app open.
      */
-    fun loadContacts(context: Context) {
+    fun loadContacts() {
         if (!hasPermission.value) return
-
-        contextRef = context
 
         viewModelScope.launch {
             _isLoading.value = true
@@ -74,7 +77,7 @@ class ContactListViewModel @Inject constructor(
                 _toastMessage.emit("Syncing contacts...")
 
                 val result = withContext(Dispatchers.IO) {
-                    syncContactsUseCase(context.contentResolver)
+                    syncContactsUseCase(appContext.contentResolver)
                 }
 
                 result.onSuccess {
@@ -100,16 +103,14 @@ class ContactListViewModel @Inject constructor(
      * Runs in background without loading indicator.
      * Ensures contacts are always fresh when user returns to app.
      */
-    fun syncOnAppResume(context: Context) {
+    fun syncOnAppResume() {
         if (!hasPermission.value) return
-
-        contextRef = context
 
         viewModelScope.launch {
             try {
                 // Sync silently in background
                 val result = withContext(Dispatchers.IO) {
-                    syncContactsUseCase(context.contentResolver)
+                    syncContactsUseCase(appContext.contentResolver)
                 }
 
                 result.onSuccess {
@@ -129,7 +130,7 @@ class ContactListViewModel @Inject constructor(
      * Only starts once to avoid duplicate observers.
      */
     private fun startObservingContactChanges() {
-        if (!hasPermission.value || contextRef == null || isObservingChanges) return
+        if (!hasPermission.value || isObservingChanges) return
 
         isObservingChanges = true
         
@@ -140,14 +141,12 @@ class ContactListViewModel @Inject constructor(
                     _toastMessage.emit("Syncing contacts...")
                     
                     val result = withContext(Dispatchers.IO) {
-                        contextRef?.let { ctx ->
-                            syncContactsUseCase(ctx.contentResolver)
-                        }
+                        syncContactsUseCase(appContext.contentResolver)
                     }
 
-                    result?.onSuccess {
+                    result.onSuccess {
                         _toastMessage.emit("Contacts synced")
-                    }?.onFailure {
+                    }.onFailure {
                         _toastMessage.emit("Sync failed")
                     }
                 }
