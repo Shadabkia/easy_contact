@@ -44,5 +44,6 @@
     <string name="next">مرحله بعد</string>
     <string name="back">بازگشت</string>
     <string name="filter_description">مشخصات مشاور مورد نظر خود را وارد کنید. لگالو با استفاده از توجه به ترجیحات شما از میان هزاران وکیل خبره جستجو و شما را به بهترین آن ها ارجاع می‌دهد</string>
+    <string name="loading">Getting your contacts.\n it might take several minuets</string>
 
 </resources>
