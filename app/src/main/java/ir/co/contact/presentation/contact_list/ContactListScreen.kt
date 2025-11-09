@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -50,6 +51,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import ir.co.contact.domain.model.Contact
 import ir.co.contact.presentation.widget.ScreenLoading
 import kotlin.math.absoluteValue
@@ -250,9 +254,11 @@ fun ContactScreenWithPermission(
     val contacts by viewModel.contacts
     val hasPermission by viewModel.hasPermission
     val isLoading by viewModel.isLoading
+    val lifecycleOwner = LocalLifecycleOwner.current
     
     var showPermissionDialog by remember { mutableStateOf(false) }
     var permissionDeniedCount by remember { mutableStateOf(0) }
+    var isFirstResume by remember { mutableStateOf(true) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -267,6 +273,39 @@ fun ContactScreenWithPermission(
             }
         }
     )
+
+    // Observe toast messages
+    LaunchedEffect(Unit) {
+        viewModel.toastMessage.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Observe lifecycle events for app resume
+    LaunchedEffect(lifecycleOwner, hasPermission) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (!isFirstResume && hasPermission) {
+                        // App resumed - sync contacts in background
+                        viewModel.syncOnAppResume(context)
+                    }
+                    isFirstResume = false
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        
+        // Cleanup observer when effect is cancelled
+        kotlinx.coroutines.coroutineScope {
+            try {
+                kotlinx.coroutines.awaitCancellation()
+            } finally {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.checkPermission(context)

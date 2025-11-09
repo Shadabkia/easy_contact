@@ -1,171 +1,175 @@
 package ir.co.contact.presentation.contact_list
 
 import android.Manifest
-import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
-import android.provider.ContactsContract
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import ir.co.contact.data.source.local.database.ContactDao
-import ir.co.contact.data.source.local.database.toDomain
-import ir.co.contact.data.source.local.database.toEntity
 import ir.co.contact.domain.model.Contact
-import javax.inject.Inject
+import ir.co.contact.domain.usecases.GetContactsUseCase
+import ir.co.contact.domain.usecases.ObserveContactChangesUseCase
+import ir.co.contact.domain.usecases.SyncContactsUseCase
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
-// 3. ViewModel
 @HiltViewModel
 class ContactListViewModel @Inject constructor(
-    private val contactDao: ContactDao
+    private val getContactsUseCase: GetContactsUseCase,
+    private val syncContactsUseCase: SyncContactsUseCase,
+    private val observeContactChangesUseCase: ObserveContactChangesUseCase
 ) : ViewModel() {
+
+    // UI State
     private val _contacts = mutableStateOf<List<Contact>>(emptyList())
     val contacts: State<List<Contact>> = _contacts
 
     private val _hasPermission = mutableStateOf(false)
     val hasPermission: State<Boolean> = _hasPermission
 
-    // Add loading state
     private val _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
 
-    // StateFlow for reactive updates
-    private val _contactsFlow = MutableStateFlow<List<Contact>>(emptyList())
-    val contactsFlow: StateFlow<List<Contact>> = _contactsFlow.asStateFlow()
+    // SharedFlow for one-time events (like toast messages)
+    private val _toastMessage = MutableSharedFlow<String>()
+    val toastMessage: SharedFlow<String> = _toastMessage.asSharedFlow()
+
+    private var contextRef: Context? = null
+    private var isObservingChanges = false
 
     init {
-        observeLocalContacts()
+        observeContacts()
     }
 
+    /**
+     * Check if READ_CONTACTS permission is granted
+     */
     fun checkPermission(context: Context) {
         _hasPermission.value = ContextCompat.checkSelfPermission(
             context, Manifest.permission.READ_CONTACTS
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    fun loadContacts(context: Context, forceRefresh: Boolean = false) {
+    /**
+     * Initial load: Shows loading and syncs contacts from phone.
+     * Always syncs to ensure fresh data on first app open.
+     */
+    fun loadContacts(context: Context) {
         if (!hasPermission.value) return
 
+        contextRef = context
+
         viewModelScope.launch {
-            _isLoading.value = true  // Show loading
+            _isLoading.value = true
             try {
-                val hasCachedContacts = withContext(Dispatchers.IO) {
-                    contactDao.getContactsCount() > 0
+                _toastMessage.emit("Syncing contacts...")
+
+                val result = withContext(Dispatchers.IO) {
+                    syncContactsUseCase(context.contentResolver)
                 }
 
-                if (!hasCachedContacts || forceRefresh) {
-                    // Use Dispatchers.IO for database operations to prevent ANR
-                    val contactList = withContext(Dispatchers.IO) {
-                        fetchContactsFromPhone(context.contentResolver)
-                    }
-                    withContext(Dispatchers.IO) {
-                        contactDao.replaceContacts(contactList.map { it.toEntity() })
-                    }
+                result.onSuccess {
+                    _toastMessage.emit("Contacts synced successfully")
+                    // Start observing contact changes after successful initial load
+                    startObservingContactChanges()
+                }.onFailure { error ->
+                    error.printStackTrace()
+                    _toastMessage.emit("Failed to sync contacts")
                 }
+
                 _isLoading.value = false
             } catch (e: Exception) {
-                // Handle any errors during contact loading
                 e.printStackTrace()
-                _isLoading.value = false  // Hide loading on error
+                _isLoading.value = false
+                _toastMessage.emit("Error loading contacts")
             }
         }
     }
 
-    private fun observeLocalContacts() {
+    /**
+     * Sync contacts when app resumes from background.
+     * Runs in background without loading indicator.
+     * Ensures contacts are always fresh when user returns to app.
+     */
+    fun syncOnAppResume(context: Context) {
+        if (!hasPermission.value) return
+
+        contextRef = context
+
         viewModelScope.launch {
-            contactDao.getContacts()
-                .map { entities -> entities.map { it.toDomain() } }
+            try {
+                // Sync silently in background
+                val result = withContext(Dispatchers.IO) {
+                    syncContactsUseCase(context.contentResolver)
+                }
+
+                result.onSuccess {
+                    _toastMessage.emit("Contacts updated")
+                }.onFailure { error ->
+                    // Silent failure - log only, don't disturb user
+                    error.printStackTrace()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * Start observing device contact changes for live sync.
+     * Only starts once to avoid duplicate observers.
+     */
+    private fun startObservingContactChanges() {
+        if (!hasPermission.value || contextRef == null || isObservingChanges) return
+
+        isObservingChanges = true
+        
+        viewModelScope.launch {
+            observeContactChangesUseCase()
+                .collectLatest {
+                    // Contact change detected, sync automatically
+                    _toastMessage.emit("Syncing contacts...")
+                    
+                    val result = withContext(Dispatchers.IO) {
+                        contextRef?.let { ctx ->
+                            syncContactsUseCase(ctx.contentResolver)
+                        }
+                    }
+
+                    result?.onSuccess {
+                        _toastMessage.emit("Contacts synced")
+                    }?.onFailure {
+                        _toastMessage.emit("Sync failed")
+                    }
+                }
+        }
+    }
+
+    /**
+     * Observe contacts from database using Flow.
+     * Updates UI state whenever database changes.
+     * This is the single source of truth for contact data.
+     */
+    private fun observeContacts() {
+        viewModelScope.launch {
+            getContactsUseCase()
                 .collectLatest { contactList ->
                     _contacts.value = contactList
-                    _contactsFlow.value = contactList
+                    
+                    // Auto-hide loading when contacts are loaded
                     if (_isLoading.value && contactList.isNotEmpty()) {
                         _isLoading.value = false
                     }
                 }
         }
-    }
-
-    private fun fetchContactsFromPhone(contentResolver: ContentResolver): List<Contact> {
-        val contacts = mutableListOf<Contact>()
-
-        val projection = arrayOf(
-            ContactsContract.Contacts._ID,
-            ContactsContract.Contacts.DISPLAY_NAME,
-            ContactsContract.Contacts.STARRED
-        )
-
-        contentResolver.query(
-            ContactsContract.Contacts.CONTENT_URI,
-            projection,
-            null,
-            null,
-            "${ContactsContract.Contacts.DISPLAY_NAME} ASC"
-        )?.use { cursor ->
-            val idColumn = cursor.getColumnIndex(ContactsContract.Contacts._ID)
-            val nameColumn = cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
-            val starredColumn = cursor.getColumnIndex(ContactsContract.Contacts.STARRED)
-
-            while (cursor.moveToNext()) {
-                val id = cursor.getString(idColumn)
-                val name = cursor.getString(nameColumn) ?: continue
-                val isStarred = cursor.getInt(starredColumn) > 0
-
-                // Get phone number
-                contentResolver.query(
-                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                    arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
-                    "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-                    arrayOf(id),
-                    null
-                )?.use { phoneCursor ->
-                    if (phoneCursor.moveToFirst()) {
-                        val phoneIndex = phoneCursor.getColumnIndex(
-                            ContactsContract.CommonDataKinds.Phone.NUMBER
-                        )
-                        val phoneNumber = phoneCursor.getString(phoneIndex) ?: ""
-
-                        contacts.add(
-                            Contact(
-                                id = id,
-                                name = name,
-                                phoneNumber = formatPhoneNumber(phoneNumber),
-                                isFavorite = isStarred
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
-        return contacts
-    }
-
-    private fun formatPhoneNumber(phone: String): String {
-        val original = phone.trim()
-
-        // Keep international numbers as-is (they start with +)
-        if (original.startsWith("+")) {
-            return original
-        }
-
-        // Format 10-digit numbers: (555) 123-4567
-        val digits = original.filter { it.isDigit() }
-        if (digits.length == 10) {
-            return "(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}"
-        }
-
-        // Return original for other formats
-        return original
     }
 }

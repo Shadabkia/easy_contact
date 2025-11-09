@@ -30,4 +30,5 @@ val ErrorRed = Color(0xFFE84E3F)
 val OnPrimary = Color.White
 val TextPrimary = Color(0xFF0F1220)
 val TextSecondary = Color(0xFF6F6B75)
+val TextSecondaryDark = Color(0xFFAAA8AF)
 val TextDark = Color(0xFFE5E1E6) // Light text for dark theme
