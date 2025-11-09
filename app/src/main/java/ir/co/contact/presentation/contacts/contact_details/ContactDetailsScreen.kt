@@ -30,8 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ir.co.contact.R
 import ir.co.contact.domain.model.*
-import ir.co.contact.presentation.contacts.contact_list.generateColorFromName
 import ir.co.contact.presentation.theme.*
+import ir.co.contact.utils.converter.generateColorFromName
 import kotlinx.coroutines.launch
 
 // Helper functions

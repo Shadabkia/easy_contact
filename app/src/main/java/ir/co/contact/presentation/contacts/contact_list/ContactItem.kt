@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ir.co.contact.domain.model.Contact
+import ir.co.contact.utils.converter.generateColorFromName
 
 // 4. Contact item composable
 @Composable
