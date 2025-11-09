@@ -23,10 +23,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-/**
- * ViewModel for managing contact list state and operations.
- * Uses Application context to avoid memory leaks.
- */
 @HiltViewModel
 class ContactListViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,

@@ -1,6 +1,11 @@
 package ir.co.contact.presentation.contacts.contact_details
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,12 +49,8 @@ fun ContactDetailScreen(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
-    val gradientColors = if (isDarkTheme) {
-        listOf(DeepNavy1, ElectricBlue)
-    } else {
-        listOf(DeepNavy1, ElectricBlue)
-    }
+    val gradientColors = listOf(DeepNavy1, ElectricBlue)
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -100,7 +102,8 @@ fun ContactDetailScreen(
                                     PhoneType.OTHER -> Icons.Default.Phone
                                 },
                                 text = phone.number,
-                                label = phone.type.name.lowercase().replaceFirstChar { it.uppercase() }
+                                label = phone.type.name.lowercase().replaceFirstChar { it.uppercase() },
+                                onClick = { dialPhoneNumber(context, phone.number) }
                             )
                         }
                     )
@@ -223,7 +226,12 @@ fun DetailSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 8.dp)
+                    .let { base ->
+                        item.onClick?.let { onClick ->
+                            base.clickable { onClick() }
+                        } ?: base
+                    },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -255,7 +263,8 @@ fun DetailSection(
 data class DetailItem(
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
     val text: String,
-    val label: String? = null
+    val label: String? = null,
+    val onClick: (() -> Unit)? = null
 )
 
 @Composable
@@ -303,6 +312,20 @@ fun ActionButtons(
             Spacer(modifier = Modifier.width(8.dp))
             Text("Delete", fontWeight = FontWeight.Bold)
         }
+    }
+}
+
+private fun dialPhoneNumber(context: Context, phone: String) {
+    val sanitized = phone.trim()
+    val encodedNumber = Uri.encode(sanitized)
+    val dialIntent = Intent(Intent.ACTION_DIAL).apply {
+        data = Uri.parse("tel:$encodedNumber")
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+    }
+    try {
+        context.startActivity(dialIntent)
+    } catch (_: ActivityNotFoundException) {
+        // No dialer available; ignore to avoid crash
     }
 }
 
