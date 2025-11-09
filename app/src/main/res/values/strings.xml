@@ -1,49 +1,11 @@
 <resources>
     <string name="app_name">contact</string>
 
-    <!--  Bottom navigation labels  -->
-    <string name="home">Home</string>
-    <string name="search">Search</string>
-    <string name="activity">Activity</string>
-    <string name="more">More</string>
-
-    <!--  API call errors  -->
-    <string name="error_request_timeout">Request Timeout</string>
-    <string name="error_bad_request">Bad Request</string>
-    <string name="error_unauthorized">Unauthorized. Please Login again</string>
-    <string name="error_forbidden">Forbidden!</string>
-    <string name="error_null_response">Null Response</string>
-    <string name="error_too_many_requests">Too Many Requests</string>
-    <string name="error_no_internet">No Internet Connection. Check your device connections.</string>
-    <string name="error_server_error">Server internal error</string>
-    <string name="error_serialization">Serialization Error. Please try again later.</string>
-    <string name="error_unknown">Unknown Error</string>
-    <string name="claimed">Claimed</string>
-    <string name="claim">Claim</string>
-    <string name="gs1_watch">Galaxy Watch 5 40mm</string>
-    <string name="gs2_watch">Galaxy Watch 6 42mm</string>
-    <string name="gs3_watch">Galaxy Watch 7 44mm</string>
-    <string name="gs4_watch">Galaxy Watch 7 46mm</string>
     <string name="logo">Logo</string>
     <string name="Shopping">Shopping</string>
-    <string name="start">شروع</string>
-    <string name="orders">سفارش ها</string>
-    <string name="notifications">اعلانات</string>
 
-    <string name="power_of_law">با قدرت قانون،</string>
-    <string name="redefine_your_future">آینده ات را بازتعریف کن</string>
-    <string name="phone_number">شماره تلفن همراه</string>
-    <string name="terms_and_conditions">قوانین و مقررات رسا را خوانده‌ام و قبول دارم.</string>
-    <string name="next_step">مرحله بعد</string>
-    <string name="invalid_code">کد وارد شده صحیح نیست</string>
-    <string name="enter_all_digits">لطفاً همه ۶ رقم را وارد کنید</string>
-    <string name="login_app">ورود به اپلیکیشن</string>
-    <string name="rasa_farsi">رسا</string>
-    <string name="rasa_english">Rasa</string>
-    <string name="try_again_btn">Try again\n</string>
-    <string name="next">مرحله بعد</string>
-    <string name="back">بازگشت</string>
     <string name="filter_description">مشخصات مشاور مورد نظر خود را وارد کنید. لگالو با استفاده از توجه به ترجیحات شما از میان هزاران وکیل خبره جستجو و شما را به بهترین آن ها ارجاع می‌دهد</string>
-    <string name="loading">Getting your contacts.\n it might take several minuets</string>
+    <string name="loading">Getting your contacts.\n it might take a few minuets</string>
+    <string name="try_again_btn">try again\n</string>
 
 </resources>

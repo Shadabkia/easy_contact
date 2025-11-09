@@ -1,4 +1,4 @@
-package ir.co.contact.presentation.contact_list
+package ir.co.contact.presentation.contacts.contact_list
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

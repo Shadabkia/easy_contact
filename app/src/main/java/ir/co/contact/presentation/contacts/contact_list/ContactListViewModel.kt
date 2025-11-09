@@ -1,4 +1,4 @@
-package ir.co.contact.presentation.contact_list
+package ir.co.contact.presentation.contacts.contact_list
 
 import android.Manifest
 import android.content.Context
@@ -50,6 +50,8 @@ class ContactListViewModel @Inject constructor(
     val toastMessage: SharedFlow<String> = _toastMessage.asSharedFlow()
 
     private var isObservingChanges = false
+    private var hasLoadedInitially = false
+    private var isSyncInProgress = false
 
     init {
         observeContacts()
@@ -68,9 +70,18 @@ class ContactListViewModel @Inject constructor(
      * Initial load: Shows loading and syncs contacts from phone.
      * Always syncs to ensure fresh data on first app open.
      */
-    fun loadContacts() {
+    fun loadContacts(forceRefresh: Boolean = false) {
         if (!hasPermission.value) return
 
+        // Prevent multiple simultaneous syncs
+        if (isSyncInProgress) return
+        
+        if (!forceRefresh && hasLoadedInitially) {
+            // Already synced once; keep existing list to avoid redundant loading
+            return
+        }
+
+        isSyncInProgress = true
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -82,6 +93,7 @@ class ContactListViewModel @Inject constructor(
 
                 result.onSuccess {
                     _toastMessage.emit("Contacts synced successfully")
+                    hasLoadedInitially = true
                     // Start observing contact changes after successful initial load
                     startObservingContactChanges()
                 }.onFailure { error ->
@@ -94,6 +106,8 @@ class ContactListViewModel @Inject constructor(
                 e.printStackTrace()
                 _isLoading.value = false
                 _toastMessage.emit("Error loading contacts")
+            } finally {
+                isSyncInProgress = false
             }
         }
     }

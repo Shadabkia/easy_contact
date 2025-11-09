@@ -1,4 +1,4 @@
-package ir.co.contact.presentation.contact_details
+package ir.co.contact.presentation.contacts.contact_details
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -21,7 +21,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ir.co.contact.domain.model.*
-import ir.co.contact.presentation.contact_list.generateColorFromName
+import ir.co.contact.presentation.contacts.contact_list.generateColorFromName
 import ir.co.contact.presentation.theme.*
 
 // Helper functions
@@ -319,18 +319,6 @@ fun ContactDetailScreenLightPreview() {
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun ContactDetailScreenDarkPreview() {
-    ContactTheme(darkTheme = true) {
-        ContactDetailScreen(
-            contact = createMockContact(),
-            onBackClick = {},
-            onEditClick = {},
-            onDeleteClick = {}
-        )
-    }
-}
 
 private fun createMockContact() = Contact(
     id = "1",

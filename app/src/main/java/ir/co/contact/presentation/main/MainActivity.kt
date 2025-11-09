@@ -31,9 +31,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import dagger.hilt.android.AndroidEntryPoint
-import ir.co.contact.presentation.contact_details.ContactDetailScreen
-import ir.co.contact.presentation.contact_list.ContactListViewModel
-import ir.co.contact.presentation.contact_list.ContactScreenWithPermission
+import ir.co.contact.presentation.contacts.contact_details.ContactDetailScreen
+import ir.co.contact.presentation.contacts.contact_list.ContactListViewModel
+import ir.co.contact.presentation.contacts.contact_list.ContactScreenWithPermission
 import ir.co.contact.presentation.main.navigation.NavigationRoutes
 import ir.co.contact.presentation.theme.ContactTheme
 
@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
+                val contactListViewModel = hiltViewModel<ContactListViewModel>()
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -75,14 +76,14 @@ class MainActivity : ComponentActivity() {
                                 ContactScreenWithPermission(
                                     onContactClick = { contactId ->
                                         navController.navigate(NavigationRoutes.ContactDetailScreen(contactId))
-                                    }
+                                    },
+                                    contactListViewModel
                                 )
                             }
                             
                             composable<NavigationRoutes.ContactDetailScreen> { backStackEntry ->
                                 val route = backStackEntry.toRoute<NavigationRoutes.ContactDetailScreen>()
-                                val viewModel = hiltViewModel<ContactListViewModel>()
-                                val contacts by viewModel.contacts
+                                val contacts by contactListViewModel.contacts
                                 val contact = contacts.find { it.id == route.contactId }
                                 
                                 contact?.let {
