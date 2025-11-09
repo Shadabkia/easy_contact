@@ -11,10 +11,12 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import ir.co.contact.domain.model.Contact
+import ir.co.contact.domain.usecases.GetContactByIdUseCase
 import ir.co.contact.domain.usecases.GetContactsUseCase
 import ir.co.contact.domain.usecases.ObserveContactChangesUseCase
 import ir.co.contact.domain.usecases.SyncContactsUseCase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -23,10 +25,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+/**
+ * ViewModel for managing contact list state and operations.
+ * Uses Application context to avoid memory leaks.
+ */
 @HiltViewModel
 class ContactListViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val getContactsUseCase: GetContactsUseCase,
+    private val getContactByIdUseCase: GetContactByIdUseCase,
     private val syncContactsUseCase: SyncContactsUseCase,
     private val observeContactChangesUseCase: ObserveContactChangesUseCase
 ) : ViewModel() {
@@ -180,5 +187,9 @@ class ContactListViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    fun getContactById(contactId: String): Flow<Contact?> {
+        return getContactByIdUseCase(contactId)
     }
 }

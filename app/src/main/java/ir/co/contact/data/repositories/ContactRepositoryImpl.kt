@@ -26,6 +26,11 @@ class ContactRepositoryImpl @Inject constructor(
             .map { entities -> entities.map { it.toDomain() } }
     }
 
+    override fun getContactById(contactId: String): Flow<Contact?> {
+        return contactDao.getContactById(contactId)
+            .map { entity -> entity?.toDomain() }
+    }
+
     override suspend fun syncContactsFromPhone(contentResolver: ContentResolver): Result<Unit> {
         return try {
             val contacts = fetchContactsFromPhone(contentResolver)

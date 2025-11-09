@@ -13,6 +13,9 @@ interface ContactDao {
     @Query("SELECT * FROM contacts ORDER BY name COLLATE NOCASE ASC")
     fun getContacts(): Flow<List<ContactEntity>>
 
+    @Query("SELECT * FROM contacts WHERE id = :contactId LIMIT 1")
+    fun getContactById(contactId: String): Flow<ContactEntity?>
+
     @Query("SELECT COUNT(*) FROM contacts")
     suspend fun getContactsCount(): Int
 
@@ -22,20 +25,11 @@ interface ContactDao {
     @Query("DELETE FROM contacts")
     suspend fun clearContacts()
 
-    @Query("DELETE FROM contacts WHERE id NOT IN (:contactIds)")
-    suspend fun deleteContactsNotIn(contactIds: List<String>)
-
     @Transaction
     suspend fun replaceContacts(contacts: List<ContactEntity>) {
+        clearContacts()
         if (contacts.isNotEmpty()) {
-            // UPSERT: Insert new contacts or update existing ones
             insertContacts(contacts)
-
-            val currentContactIds = contacts.map { it.id }
-            deleteContactsNotIn(currentContactIds)
-        } else {
-            // If no contacts on phone, clear all
-            clearContacts()
         }
     }
 }

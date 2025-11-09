@@ -4,27 +4,19 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -32,6 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import dagger.hilt.android.AndroidEntryPoint
 import ir.co.contact.presentation.contacts.contact_details.ContactDetailScreen
+import ir.co.contact.presentation.contacts.contact_details.MissingContactState
 import ir.co.contact.presentation.contacts.contact_list.ContactListViewModel
 import ir.co.contact.presentation.contacts.contact_list.ContactScreenWithPermission
 import ir.co.contact.presentation.main.navigation.NavigationRoutes
@@ -83,34 +76,25 @@ class MainActivity : ComponentActivity() {
                             
                             composable<NavigationRoutes.ContactDetailScreen> { backStackEntry ->
                                 val route = backStackEntry.toRoute<NavigationRoutes.ContactDetailScreen>()
-                                val contacts by contactListViewModel.contacts
-                                val contact = contacts.find { it.id == route.contactId }
-                                
-                                contact?.let {
+                                val contactFlow = remember(route.contactId) {
+                                    contactListViewModel.getContactById(route.contactId)
+                                }
+                                val contact by contactFlow.collectAsStateWithLifecycle(initialValue = null)
+
+                                if (contact != null) {
                                     ContactDetailScreen(
-                                        contact = it,
+                                        contact = contact!!,
                                         onBackClick = { navController.popBackStack() },
-                                        snackBarHostState
+                                        snackBarHostState = snackBarHostState
                                     )
+                                } else {
+                                    MissingContactState(onBackClick = { navController.popBackStack() })
                                 }
                             }
                         }
                     }
                 }
             }
-        }
-    }
-
-    @Composable
-    private fun GeneralScreen(modifier: Modifier = Modifier, text: String) {
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surfaceContainerLowest),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(text = text, style = MaterialTheme.typography.displayLarge)
         }
     }
 }
