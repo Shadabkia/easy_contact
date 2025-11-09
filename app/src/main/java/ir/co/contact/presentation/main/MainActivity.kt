@@ -90,8 +90,7 @@ class MainActivity : ComponentActivity() {
                                     ContactDetailScreen(
                                         contact = it,
                                         onBackClick = { navController.popBackStack() },
-                                        onEditClick = {  },
-                                        onDeleteClick = {  }
+                                        snackBarHostState
                                     )
                                 }
                             }

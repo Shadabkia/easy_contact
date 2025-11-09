@@ -16,19 +16,23 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ir.co.contact.R
 import ir.co.contact.domain.model.*
 import ir.co.contact.presentation.contacts.contact_list.generateColorFromName
 import ir.co.contact.presentation.theme.*
+import kotlinx.coroutines.launch
 
 // Helper functions
 fun getInitials(name: String): String {
@@ -45,12 +49,13 @@ fun getInitials(name: String): String {
 fun ContactDetailScreen(
     contact: Contact,
     onBackClick: () -> Unit,
-    onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit,
+    snackBarHostState: SnackbarHostState?,
     modifier: Modifier = Modifier
 ) {
     val gradientColors = listOf(DeepNavy1, ElectricBlue)
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val notImplementedMessage = stringResource(R.string.not_implemented)
 
     Scaffold(
         topBar = {
@@ -73,8 +78,24 @@ fun ContactDetailScreen(
         },
         bottomBar = {
             ActionButtons(
-                onEditClick = onEditClick,
-                onDeleteClick = onDeleteClick
+                onEditClick = {
+                    scope.launch {
+                        snackBarHostState?.showSnackbar(
+                            message = notImplementedMessage,
+                            withDismissAction = true,
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                },
+                onDeleteClick = {
+                    scope.launch {
+                        snackBarHostState?.showSnackbar(
+                            message = notImplementedMessage,
+                            withDismissAction = true,
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                }
             )
         },
         containerColor = Color.Transparent
@@ -336,8 +357,7 @@ fun ContactDetailScreenLightPreview() {
         ContactDetailScreen(
             contact = createMockContact(),
             onBackClick = {},
-            onEditClick = {},
-            onDeleteClick = {}
+            null
         )
     }
 }
