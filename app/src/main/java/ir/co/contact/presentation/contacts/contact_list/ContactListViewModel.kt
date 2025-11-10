@@ -71,8 +71,8 @@ class ContactListViewModel @Inject constructor(
 
     /**
      * Initial load: Shows loading and syncs contacts from phone.
-     * First sync fetches all contacts. Subsequent syncs only fetch changed contacts
-     * for better performance using incremental sync.
+     * Only shows loading indicator on FIRST EVER sync (when no timestamp exists).
+     * Subsequent app launches use silent background sync.
      */
     fun loadContacts(forceRefresh: Boolean = false) {
         if (!hasPermission.value) return
@@ -81,38 +81,78 @@ class ContactListViewModel @Inject constructor(
         if (isSyncInProgress) return
         
         if (!forceRefresh && hasLoadedInitially) {
-            // Already synced once; keep existing list to avoid redundant loading
+            // Already synced in this session; keep existing list to avoid redundant loading
             return
         }
 
-        isSyncInProgress = true
         viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                _toastMessage.emit("Syncing contacts...")
-
-                val result = withContext(Dispatchers.IO) {
-                    syncContactsUseCase(appContext.contentResolver)
-                }
-
-                result.onSuccess {
-//                    _toastMessage.emit("Contacts synced successfully")
-                    hasLoadedInitially = true
-                    // Start observing contact changes after successful initial load
-                    startObservingContactChanges()
-                }.onFailure { error ->
-                    error.printStackTrace()
-                    _toastMessage.emit("Failed to sync contacts")
-                }
-
-                _isLoading.value = false
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _isLoading.value = false
-                _toastMessage.emit("Error loading contacts")
-            } finally {
-                isSyncInProgress = false
+            // Check if this is the first sync ever by looking at DataStore timestamp
+            val lastSyncTimestamp = dataStoreManager.getData(DataStoreConstants.LAST_CONTACT_SYNC_TIMESTAMP).first() ?: 0L
+            
+            if (lastSyncTimestamp == 0L) {
+                // First sync ever - show loading indicator
+                performInitialSync()
+            } else {
+                // Already synced before - do silent background sync
+                performSilentSync()
             }
+            
+            hasLoadedInitially = true
+            startObservingContactChanges()
+        }
+    }
+    
+    /**
+     * Performs the first-time sync with loading indicator
+     */
+    private suspend fun performInitialSync() {
+        isSyncInProgress = true
+        _isLoading.value = true
+        
+        try {
+            _toastMessage.emit("Syncing contacts...")
+
+            val result = withContext(Dispatchers.IO) {
+                syncContactsUseCase(appContext.contentResolver)
+            }
+
+            result.onSuccess {
+                _toastMessage.emit("Contacts synced successfully")
+            }.onFailure { error ->
+                error.printStackTrace()
+                _toastMessage.emit("Failed to sync contacts")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _toastMessage.emit("Error loading contacts")
+        } finally {
+            _isLoading.value = false
+            isSyncInProgress = false
+        }
+    }
+    
+    /**
+     * Performs silent background sync (for subsequent app launches)
+     */
+    private suspend fun performSilentSync() {
+        isSyncInProgress = true
+        
+        try {
+            val result = withContext(Dispatchers.IO) {
+                syncContactsUseCase(appContext.contentResolver)
+            }
+
+            result.onSuccess {
+                // Silent success - no toast needed for quick incremental sync
+            }.onFailure { error ->
+                error.printStackTrace()
+                // Only show error if sync fails
+                _toastMessage.emit("Failed to sync contacts")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            isSyncInProgress = false
         }
     }
 

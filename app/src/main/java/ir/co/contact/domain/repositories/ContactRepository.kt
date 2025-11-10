@@ -7,6 +7,7 @@ interface ContactRepository {
     fun getContacts(): Flow<List<Contact>>
     fun getContactById(contactId: String): Flow<Contact?>
     suspend fun syncContactsFromPhone(contentResolver: android.content.ContentResolver): Result<Unit>
+    suspend fun forceFullSyncFromPhone(contentResolver: android.content.ContentResolver): Result<Unit>
     suspend fun hasCachedContacts(): Boolean
     fun observeContactChanges(): Flow<Unit>
 }
