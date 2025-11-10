@@ -1,10 +1,9 @@
 <resources>
-    <string name="app_name">contact</string>
+    <string name="app_name">Easy Contact</string>
 
     <string name="logo">Logo</string>
     <string name="Shopping">Shopping</string>
 
-    <string name="filter_description">مشخصات مشاور مورد نظر خود را وارد کنید. لگالو با استفاده از توجه به ترجیحات شما از میان هزاران وکیل خبره جستجو و شما را به بهترین آن ها ارجاع می‌دهد</string>
     <string name="loading">Getting your contacts.\n it might take a few minuets</string>
     <string name="try_again_btn">try again\n</string>
     <string name="not_implemented">Not implemented yet</string>

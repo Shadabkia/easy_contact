@@ -45,4 +45,5 @@ class DataStoreManager @Inject constructor(@ApplicationContext val context: Cont
 object DataStoreConstants {
     const val DATASTORE_NAME = "default_datastore"
     val ACCESS_TOKEN = stringPreferencesKey(name = "access_token")
+    val LAST_CONTACT_SYNC_TIMESTAMP = longPreferencesKey(name = "last_contact_sync_timestamp")
 }

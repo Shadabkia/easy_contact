@@ -5,17 +5,21 @@ import android.content.Context
 import android.provider.ContactsContract
 import dagger.hilt.android.qualifiers.ApplicationContext
 import ir.co.contact.data.source.local.ContactObserver
+import ir.co.contact.data.source.local.DataStoreConstants
+import ir.co.contact.data.source.local.DataStoreManager
 import ir.co.contact.data.source.local.database.ContactDao
 import ir.co.contact.data.source.local.database.toDomain
 import ir.co.contact.data.source.local.database.toEntity
 import ir.co.contact.domain.model.Contact
 import ir.co.contact.domain.repositories.ContactRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class ContactRepositoryImpl @Inject constructor(
     private val contactDao: ContactDao,
+    private val dataStoreManager: DataStoreManager,
     @ApplicationContext private val context: Context
 ) : ContactRepository {
     
@@ -33,8 +37,51 @@ class ContactRepositoryImpl @Inject constructor(
 
     override suspend fun syncContactsFromPhone(contentResolver: ContentResolver): Result<Unit> {
         return try {
-            val contacts = fetchContactsFromPhone(contentResolver)
+            val lastSyncTimestamp = dataStoreManager.getData(DataStoreConstants.LAST_CONTACT_SYNC_TIMESTAMP).first() ?: 0L
+            val currentTimestamp = System.currentTimeMillis()
+            
+            if (lastSyncTimestamp == 0L) {
+                // First sync - fetch all contacts
+                val contacts = fetchContactsFromPhone(contentResolver, null)
+                contactDao.replaceContacts(contacts.map { it.toEntity() })
+            } else {
+                // Incremental sync - fetch only changed contacts
+                val changedContacts = fetchContactsFromPhone(contentResolver, lastSyncTimestamp)
+                
+                if (changedContacts.isNotEmpty()) {
+                    // Upsert changed contacts
+                    contactDao.upsertContacts(changedContacts.map { it.toEntity() })
+                }
+                
+                // Detect deleted contacts by comparing IDs
+                val currentPhoneContactIds = fetchAllContactIds(contentResolver)
+                val cachedContactIds = contactDao.getAllContactIds()
+                val deletedContactIds = cachedContactIds.filterNot { it in currentPhoneContactIds }
+                
+                if (deletedContactIds.isNotEmpty()) {
+                    contactDao.deleteContactsByIds(deletedContactIds)
+                }
+            }
+            
+            // Update last sync timestamp
+            dataStoreManager.updateData(DataStoreConstants.LAST_CONTACT_SYNC_TIMESTAMP, currentTimestamp)
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun forceFullSyncFromPhone(contentResolver: ContentResolver): Result<Unit> {
+        return try {
+            // Force a full sync by resetting timestamp and fetching all contacts
+            val contacts = fetchContactsFromPhone(contentResolver, null)
             contactDao.replaceContacts(contacts.map { it.toEntity() })
+            
+            // Update last sync timestamp
+            val currentTimestamp = System.currentTimeMillis()
+            dataStoreManager.updateData(DataStoreConstants.LAST_CONTACT_SYNC_TIMESTAMP, currentTimestamp)
+            
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -49,20 +96,38 @@ class ContactRepositoryImpl @Inject constructor(
         return contactObserver.observeContactChanges()
     }
 
-    private fun fetchContactsFromPhone(contentResolver: ContentResolver): List<Contact> {
+    /**
+     * Fetches contacts from phone. If lastSyncTimestamp is provided, only fetches contacts
+     * modified after that timestamp for incremental sync.
+     */
+    private fun fetchContactsFromPhone(contentResolver: ContentResolver, lastSyncTimestamp: Long?): List<Contact> {
         val contacts = mutableListOf<Contact>()
 
         val projection = arrayOf(
             ContactsContract.Contacts._ID,
             ContactsContract.Contacts.DISPLAY_NAME,
-            ContactsContract.Contacts.STARRED
+            ContactsContract.Contacts.STARRED,
+            ContactsContract.Contacts.CONTACT_LAST_UPDATED_TIMESTAMP
         )
+
+        // Build selection clause for incremental sync
+        val selection = if (lastSyncTimestamp != null) {
+            "${ContactsContract.Contacts.CONTACT_LAST_UPDATED_TIMESTAMP} > ?"
+        } else {
+            null
+        }
+        
+        val selectionArgs = if (lastSyncTimestamp != null) {
+            arrayOf(lastSyncTimestamp.toString())
+        } else {
+            null
+        }
 
         contentResolver.query(
             ContactsContract.Contacts.CONTENT_URI,
             projection,
-            null,
-            null,
+            selection,
+            selectionArgs,
             "${ContactsContract.Contacts.DISPLAY_NAME} ASC"
         )?.use { cursor ->
             val idColumn = cursor.getColumnIndex(ContactsContract.Contacts._ID)
@@ -192,6 +257,33 @@ class ContactRepositoryImpl @Inject constructor(
         }
 
         return addresses
+    }
+
+    /**
+     * Fetches only the IDs of all contacts from phone.
+     * Used for detecting deleted contacts during incremental sync.
+     */
+    private fun fetchAllContactIds(contentResolver: ContentResolver): Set<String> {
+        val contactIds = mutableSetOf<String>()
+        
+        contentResolver.query(
+            ContactsContract.Contacts.CONTENT_URI,
+            arrayOf(ContactsContract.Contacts._ID),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            val idColumn = cursor.getColumnIndex(ContactsContract.Contacts._ID)
+            
+            while (cursor.moveToNext()) {
+                val id = cursor.getString(idColumn)
+                if (id != null) {
+                    contactIds.add(id)
+                }
+            }
+        }
+        
+        return contactIds
     }
 
     private fun formatPhoneNumber(phone: String): String {

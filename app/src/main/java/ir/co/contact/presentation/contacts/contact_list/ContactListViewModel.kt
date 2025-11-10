@@ -10,6 +10,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import ir.co.contact.data.source.local.DataStoreConstants
+import ir.co.contact.data.source.local.DataStoreManager
 import ir.co.contact.domain.model.Contact
 import ir.co.contact.domain.usecases.GetContactByIdUseCase
 import ir.co.contact.domain.usecases.GetContactsUseCase
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -31,7 +34,8 @@ class ContactListViewModel @Inject constructor(
     private val getContactsUseCase: GetContactsUseCase,
     private val getContactByIdUseCase: GetContactByIdUseCase,
     private val syncContactsUseCase: SyncContactsUseCase,
-    private val observeContactChangesUseCase: ObserveContactChangesUseCase
+    private val observeContactChangesUseCase: ObserveContactChangesUseCase,
+    private val dataStoreManager: DataStoreManager
 ) : ViewModel() {
 
     // UI State
@@ -67,7 +71,8 @@ class ContactListViewModel @Inject constructor(
 
     /**
      * Initial load: Shows loading and syncs contacts from phone.
-     * Always syncs to ensure fresh data on first app open.
+     * First sync fetches all contacts. Subsequent syncs only fetch changed contacts
+     * for better performance using incremental sync.
      */
     fun loadContacts(forceRefresh: Boolean = false) {
         if (!hasPermission.value) return
@@ -91,7 +96,7 @@ class ContactListViewModel @Inject constructor(
                 }
 
                 result.onSuccess {
-                    _toastMessage.emit("Contacts synced successfully")
+//                    _toastMessage.emit("Contacts synced successfully")
                     hasLoadedInitially = true
                     // Start observing contact changes after successful initial load
                     startObservingContactChanges()
@@ -114,11 +119,15 @@ class ContactListViewModel @Inject constructor(
     /**
      * Sync contacts when app resumes from background.
      * Runs in background without loading indicator.
-     * Ensures contacts are always fresh when user returns to app.
+     * Uses incremental sync to only fetch changed/deleted contacts for efficiency.
      */
     fun syncOnAppResume() {
         if (!hasPermission.value) return
+        
+        // Prevent sync if one is already in progress
+        if (isSyncInProgress) return
 
+        isSyncInProgress = true
         viewModelScope.launch {
             try {
                 // Sync silently in background
@@ -134,6 +143,8 @@ class ContactListViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                isSyncInProgress = false
             }
         }
     }
