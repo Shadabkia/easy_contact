@@ -96,10 +96,7 @@ class ContactRepositoryImpl @Inject constructor(
         return contactObserver.observeContactChanges()
     }
 
-    /**
-     * Fetches contacts from phone. If lastSyncTimestamp is provided, only fetches contacts
-     * modified after that timestamp for incremental sync.
-     */
+
     private fun fetchContactsFromPhone(contentResolver: ContentResolver, lastSyncTimestamp: Long?): List<Contact> {
         val contacts = mutableListOf<Contact>()
 
@@ -259,10 +256,7 @@ class ContactRepositoryImpl @Inject constructor(
         return addresses
     }
 
-    /**
-     * Fetches only the IDs of all contacts from phone.
-     * Used for detecting deleted contacts during incremental sync.
-     */
+
     private fun fetchAllContactIds(contentResolver: ContentResolver): Set<String> {
         val contactIds = mutableSetOf<String>()
         

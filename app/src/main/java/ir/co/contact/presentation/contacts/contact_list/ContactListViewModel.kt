@@ -69,11 +69,6 @@ class ContactListViewModel @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    /**
-     * Initial load: Shows loading and syncs contacts from phone.
-     * Only shows loading indicator on FIRST EVER sync (when no timestamp exists).
-     * Subsequent app launches use silent background sync.
-     */
     fun loadContacts(forceRefresh: Boolean = false) {
         if (!hasPermission.value) return
 
