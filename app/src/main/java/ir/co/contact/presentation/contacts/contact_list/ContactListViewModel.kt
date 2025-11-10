@@ -151,11 +151,6 @@ class ContactListViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Sync contacts when app resumes from background.
-     * Runs in background without loading indicator.
-     * Uses incremental sync to only fetch changed/deleted contacts for efficiency.
-     */
     fun syncOnAppResume() {
         if (!hasPermission.value) return
         
@@ -184,10 +179,7 @@ class ContactListViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Start observing device contact changes for live sync.
-     * Only starts once to avoid duplicate observers.
-     */
+
     private fun startObservingContactChanges() {
         if (!hasPermission.value || isObservingChanges) return
 
@@ -212,11 +204,6 @@ class ContactListViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Observe contacts from database using Flow.
-     * Updates UI state whenever database changes.
-     * This is the single source of truth for contact data.
-     */
     private fun observeContacts() {
         viewModelScope.launch {
             getContactsUseCase()
