@@ -4,8 +4,10 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,6 +35,7 @@ import ir.co.contact.domain.model.*
 import ir.co.contact.presentation.theme.*
 import ir.co.contact.utils.converter.generateColorFromName
 import kotlinx.coroutines.launch
+import androidx.core.net.toUri
 
 // Helper functions
 fun getInitials(name: String): String {
@@ -124,7 +127,16 @@ fun ContactDetailScreen(
                                 },
                                 text = phone.number,
                                 label = phone.type.name.lowercase().replaceFirstChar { it.uppercase() },
-                                onClick = { dialPhoneNumber(context, phone.number) }
+                                onClick = { dialPhoneNumber(context, phone.number) },
+                                onLongClick = {
+                                    scope.launch {
+                                        snackBarHostState?.showSnackbar(
+                                            message = phone.number,
+                                            withDismissAction = true,
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    }
+                                }
                             )
                         }
                     )
@@ -222,6 +234,7 @@ fun DetailHeader(contact: Contact) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DetailSection(
     title: String,
@@ -248,11 +261,10 @@ fun DetailSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
-                    .let { base ->
-                        item.onClick?.let { onClick ->
-                            base.clickable { onClick() }
-                        } ?: base
-                    },
+                    .combinedClickable(
+                        onClick = item.onClick ?: {},
+                        onLongClick = item.onLongClick
+                    ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -285,7 +297,8 @@ data class DetailItem(
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
     val text: String,
     val label: String? = null,
-    val onClick: (() -> Unit)? = null
+    val onClick: (() -> Unit)? = null,
+    val onLongClick: (() -> Unit)? = null
 )
 
 @Composable
@@ -340,7 +353,7 @@ private fun dialPhoneNumber(context: Context, phone: String) {
     val sanitized = phone.trim()
     val encodedNumber = Uri.encode(sanitized)
     val dialIntent = Intent(Intent.ACTION_DIAL).apply {
-        data = Uri.parse("tel:$encodedNumber")
+        data = "tel:$encodedNumber".toUri()
         flags = Intent.FLAG_ACTIVITY_NEW_TASK
     }
     try {
